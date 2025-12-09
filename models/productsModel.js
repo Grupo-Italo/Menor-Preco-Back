@@ -1,25 +1,58 @@
 const pool = require('../db');
 
-exports.getAll = async () => {
-    const result = await pool.query('SELECT * FROM usuarios');
+exports.getAllProducts = async () => {
+    const result = await pool.query('SELECT * FROM dadosbi.menorpreco_ofertas');
     return result.rows;
 };
 
-// exports.create = async (nome, email) => {
-//     const result = await pool.query(
-//         'INSERT INTO usuarios (nome, email) VALUES ($1, $2) RETURNING *',
-//         [nome, email]
-//     );
-//     return result.rows[0];
-// };
+exports.createOrUpdateProductsBulk = async (produtos) => {
+    if (!produtos?.length) return;
 
-// exports.update = async (id, nome, email) => {
-//     await pool.query(
-//         'UPDATE usuarios SET nome = $1, email = $2 WHERE id = $3',
-//         [nome, email, id]
-//     );
-// };
+    const columns = [
+        "gtin",
+        "produto_desc",
+        "ncm",
+        "valor",
+        "valor_tabela",
+        "datahora",
+        "distkm",
+        "estabelecimento_codigo",
+        "estabelecimento_nome",
+        "municipio",
+        "uf",
+        "nrdoc",
+        "fetched_at"
+    ];
 
-// exports.delete = async (id) => {
-//     await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
-// };
+    // Gera os VALUES e PLACEHOLDERS automaticamente
+    const values = [];
+    const placeholders = produtos.map((p, rowIndex) => {
+        const rowPlaceholders = columns.map((_, colIndex) => {
+            values.push(p[columns[colIndex]]);
+            return `$${values.length}`;
+        });
+
+        return `(${rowPlaceholders.join(", ")})`;
+    });
+
+    // UPSERT — baseado nas chaves únicas
+    const query = `
+        INSERT INTO dadosbi.menorpreco_ofertas (${columns.join(", ")})
+        VALUES ${placeholders.join(", ")}
+        ON CONFLICT (gtin, estabelecimento_codigo, nrdoc)
+        DO UPDATE SET
+            produto_desc = EXCLUDED.produto_desc,
+            ncm = EXCLUDED.ncm,
+            valor = EXCLUDED.valor,
+            valor_tabela = EXCLUDED.valor_tabela,
+            datahora = EXCLUDED.datahora,
+            distkm = EXCLUDED.distkm,
+            estabelecimento_nome = EXCLUDED.estabelecimento_nome,
+            municipio = EXCLUDED.municipio,
+            uf = EXCLUDED.uf,
+            fetched_at = EXCLUDED.fetched_at;
+    `;
+
+    await pool.query(query, values);
+};
+
