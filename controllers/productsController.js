@@ -12,7 +12,7 @@ exports.getProducts = async (req, res) => {
     exports.createOrUpdateProductsBulk = async (req, res) => {
     try {
         const product = await productsModel.createOrUpdateProductsBulk(req.body);
-        res.json(product);
+        res.json({ message: 'Dados gravados com sucesso' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
