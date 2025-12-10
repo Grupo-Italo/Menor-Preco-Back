@@ -8,6 +8,11 @@ exports.getAllProducts = async () => {
 exports.createOrUpdateProductsBulk = async (produtos) => {
     if (!produtos?.length) return;
 
+    // Filtra apenas produtos com gtin (obrigatório)
+    const produtosValidos = produtos.filter(p => p.gtin);
+    
+    if (!produtosValidos.length) return; // Se nenhum tem gtin, apenas não grava nada
+
     const columns = [
         "gtin",
         "produto_desc",
@@ -26,9 +31,9 @@ exports.createOrUpdateProductsBulk = async (produtos) => {
 
     // Gera os VALUES e PLACEHOLDERS automaticamente
     const values = [];
-    const placeholders = produtos.map((p, rowIndex) => {
-        const rowPlaceholders = columns.map((_, colIndex) => {
-            values.push(p[columns[colIndex]]);
+    const placeholders = produtosValidos.map((p, rowIndex) => {
+        const rowPlaceholders = columns.map((col) => {
+            values.push(p[col] || null);
             return `$${values.length}`;
         });
 
