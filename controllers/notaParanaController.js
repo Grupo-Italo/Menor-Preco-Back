@@ -14,7 +14,7 @@ exports.search = async (req, res) => {
         }
 
         const concorrentes = await concorrentesModel.findByConcorrentBaseId(italoBase[0].id);
-        
+
         const data = await searchService.search(local, gtin, termo);
 
         // Filtra por raio, se fornecido
@@ -63,7 +63,19 @@ exports.search = async (req, res) => {
             await productsModel.createOrUpdateProductsBulk(produtosBulk);
         }
 
-        res.json(data);
+        // Busca adicional no seu banco interno
+        let productInfo = [];
+        if (gtin) {
+            productInfo = await productsModel.getProductsByGtin(gtin);
+            console.log('productInfo:', productInfo);
+        }
+
+        // Retorno final consolidado
+        res.json({
+            ...data,
+            productInfo
+        });
+
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../db/pool_main');
 
 exports.getAllCities = async () => {
     const result = await pool.query('select distinct cidade from dadosbi.np_italo_bases');

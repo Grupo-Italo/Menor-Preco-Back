@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../db/pool_main');
 
 exports.getAllProducts = async () => {
     const result = await pool.query('SELECT * FROM dadosbi.menorpreco_ofertas');
@@ -10,7 +10,7 @@ exports.createOrUpdateProductsBulk = async (produtos) => {
 
     // Filtra apenas produtos com gtin (obrigatório)
     const produtosValidos = produtos.filter(p => p.gtin);
-    
+
     if (!produtosValidos.length) return; // Se nenhum tem gtin, apenas não grava nada
 
     const columns = [
