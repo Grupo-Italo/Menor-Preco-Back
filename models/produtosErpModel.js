@@ -9,11 +9,9 @@ exports.getProductsByGtin = async (gtin) => {
         FROM public.produtos
         WHERE 
             prod_status = 'N'
-            AND prod_extra10 = 1
             AND prod_codbarras = $1
     `;
 
     const result = await pool.query(query, [gtin]);
-    console.log('produtosErpModel.getProductsByGtin result:', result.rows);
     return result.rows;
 };

@@ -2,6 +2,7 @@ const searchService = require('../services/notaParanaService');
 const productsModel = require('../models/productsModel');
 const concorrentesModel = require('../models/concorrentesModel');
 const italobasesModel = require('../models/italoBasesModel');
+const produtosErpModel = require('../models/produtosErpModel');
 
 exports.search = async (req, res) => {
     try {
@@ -66,8 +67,7 @@ exports.search = async (req, res) => {
         // Busca adicional no seu banco interno
         let productInfo = [];
         if (gtin) {
-            productInfo = await productsModel.getProductsByGtin(gtin);
-            console.log('productInfo:', productInfo);
+            productInfo = await produtosErpModel.getProductsByGtin(gtin);
         }
 
         // Retorno final consolidado
