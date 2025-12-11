@@ -43,23 +43,33 @@ exports.search = async (req, res) => {
         }
 
         if (gtin && data?.produtos?.length) {
-            const produtosBulk = data.produtos.map(produto => ({
-                gtin: produto.gtin,
-                produto_desc: produto.desc,
-                ncm: produto.ncm,
-                valor: produto.valor,
-                valor_tabela: produto.valor_tabela,
-                datahora: produto.datahora,
-                distkm: produto.distkm,
-                estabelecimento_codigo: produto.estabelecimento.codigo,
-                estabelecimento_nome: produto.estabelecimento.nm_emp,
-                municipio: produto.estabelecimento.mun,
-                uf: produto.estabelecimento.uf,
-                nrdoc: produto.nrdoc,
-                fetched_at: new Date().toISOString(),
-                nome_emp: produto.estabelecimento.nm_emp,
-                geohash: produto.local
-            }));
+
+            const italoBaseId = italoBase[0].id;
+
+            const produtosBulk = [];
+
+            for (const produto of data.produtos) {
+                const concorrenteBaseId = await concorrentesModel.findConcorrenteId(produto.local, italoBaseId);
+
+                produtosBulk.push({
+                    gtin: produto.gtin,
+                    produto_desc: produto.desc,
+                    ncm: produto.ncm,
+                    valor: produto.valor,
+                    valor_tabela: produto.valor_tabela,
+                    datahora: produto.datahora,
+                    distkm: produto.distkm,
+                    estabelecimento_codigo: produto.estabelecimento.codigo,
+                    estabelecimento_nome: produto.estabelecimento.nm_emp,
+                    municipio: produto.estabelecimento.mun,
+                    uf: produto.estabelecimento.uf,
+                    nrdoc: produto.nrdoc,
+                    fetched_at: new Date().toISOString(),
+                    nome_emp: produto.estabelecimento.nm_emp,
+                    geohash: produto.local,
+                    concorrentes_bases_id: concorrenteBaseId
+                });
+            }
 
             await productsModel.createOrUpdateProductsBulk(produtosBulk);
         }
