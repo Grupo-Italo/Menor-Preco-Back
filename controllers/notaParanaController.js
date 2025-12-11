@@ -1,11 +1,23 @@
 const searchService = require('../services/notaParanaService');
 const productsModel = require('../models/productsModel');
+const concorrentesModel = require('../models/concorrentesModel');
+const italobasesModel = require('../models/italoBasesModel');
 
 exports.search = async (req, res) => {
     try {
         const { local, gtin, termo, raio } = req.query;
+
+        const italoBase = await italobasesModel.findByGeohash(local);
+
+        if (!italoBase) {
+            return res.status(404).json({ error: 'Base Italo não encontrada para este geohash' });
+        }
+
+        const concorrentes = await concorrentesModel.findByConcorrentBaseId(italoBase[0].id);
+        
         const data = await searchService.search(local, gtin, termo);
 
+        // Filtra por raio, se fornecido
         if (raio && data?.produtos?.length) {
             const raioMeters = Number(raio);
             if (!Number.isNaN(raioMeters)) {
@@ -17,6 +29,16 @@ exports.search = async (req, res) => {
                     return (distKm * 1000) <= raioMeters;
                 });
             }
+        }
+
+        // Filtra por concorrentes vinculados à base Italo
+        if (data?.produtos?.length) {
+            data.produtos = data.produtos.filter(prod => {
+                return concorrentes.some(c => {
+                    const sameGeohash = c.geohash === prod.local;
+                    return sameGeohash;
+                });
+            });
         }
 
         if (gtin && data?.produtos?.length) {
@@ -33,7 +55,9 @@ exports.search = async (req, res) => {
                 municipio: produto.estabelecimento.mun,
                 uf: produto.estabelecimento.uf,
                 nrdoc: produto.nrdoc,
-                fetched_at: new Date().toISOString()
+                fetched_at: new Date().toISOString(),
+                nome_emp: produto.estabelecimento.nm_emp,
+                geohash: produto.local
             }));
 
             await productsModel.createOrUpdateProductsBulk(produtosBulk);

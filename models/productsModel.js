@@ -26,7 +26,9 @@ exports.createOrUpdateProductsBulk = async (produtos) => {
         "municipio",
         "uf",
         "nrdoc",
-        "fetched_at"
+        "fetched_at",
+        "nome_emp",
+        "geohash"
     ];
 
     // Gera os VALUES e PLACEHOLDERS automaticamente
@@ -55,7 +57,9 @@ exports.createOrUpdateProductsBulk = async (produtos) => {
             estabelecimento_nome = EXCLUDED.estabelecimento_nome,
             municipio = EXCLUDED.municipio,
             uf = EXCLUDED.uf,
-            fetched_at = EXCLUDED.fetched_at;
+            fetched_at = EXCLUDED.fetched_at,
+            nome_emp = EXCLUDED.nome_emp,
+            geohash = EXCLUDED.geohash
     `;
 
     await pool.query(query, values);
