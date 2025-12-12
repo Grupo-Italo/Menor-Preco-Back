@@ -15,6 +15,15 @@ exports.getAllGroups = async () => {
 };
 
 exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId) => {
+
+    // 0) Obter o código da unidade associada à base Italo
+    const italoUnidadeCodigoResult = await poolMain.query(
+        `SELECT prun_unid_codigo FROM portal.dadosbi.np_italo_bases WHERE id = $1`,
+        [italoBasesId]
+    );
+
+      const italoUnidadeCodigo = italoUnidadeCodigoResult.rows[0].prun_unid_codigo;
+
   // 1) Buscar produtos do ERP (pode retornar várias linhas por prod_codbarras)
   const produtosResult = await pool.query(
     `SELECT 
@@ -22,12 +31,13 @@ exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId) =
        produto.prod_codbarras, 
        produn.prun_prvenda AS valor_loja,
        produn.prun_prvenda2 AS promocao_loja,
-       produn.prun_prvenda3 AS atacado_loja
+       produn.prun_prvenda3 AS atacado_loja,
+	   produn.prun_unid_codigo
      FROM erp.public.produtos produto
      JOIN erp.public.produn produn 
        ON produn.prun_prod_codigo = produto.prod_codigo
-     WHERE produto.prod_grup_codigo = $1`,
-    [grupoCodigo]
+     WHERE produto.prod_grup_codigo = $1 AND prod_status = 'N' AND prun_unid_codigo = $2`,
+    [grupoCodigo, italoUnidadeCodigo]
   );
 
   const produtosRows = produtosResult.rows;
