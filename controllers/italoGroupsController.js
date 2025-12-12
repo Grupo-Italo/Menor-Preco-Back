@@ -13,7 +13,8 @@ exports.getProdutosComConcorrentesDinamico = async (req, res) => {
     try {
         const result = await getAllGroups.getProdutosComConcorrentesDinamico(
             req.query.grupoCodigo,
-            req.query.italoBasesId
+            req.query.italoBasesId,
+            req.query.marca
         );
         res.json(result);
     } catch (err) {
