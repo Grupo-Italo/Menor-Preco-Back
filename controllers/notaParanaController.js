@@ -33,11 +33,13 @@ exports.search = async (req, res) => {
         }
 
         // Filtra por concorrentes vinculados à base Italo
+        // No controller, substitua o filtro por este:
         if (data?.produtos?.length) {
             data.produtos = data.produtos.filter(prod => {
                 return concorrentes.some(c => {
                     const sameGeohash = c.geohash === prod.local;
-                    return sameGeohash;
+                    const sameEmpresa = c.nome_empresa === prod.estabelecimento.nm_emp;
+                    return sameGeohash && sameEmpresa; // ← Ambos precisam bater!
                 });
             });
         }
@@ -49,7 +51,7 @@ exports.search = async (req, res) => {
             const produtosBulk = [];
 
             for (const produto of data.produtos) {
-                const concorrenteBaseId = await concorrentesModel.findConcorrenteId(produto.local, italoBaseId);
+                const concorrenteBaseId = await concorrentesModel.findConcorrenteId(produto.local, produto.estabelecimento.nm_emp, italoBaseId);
 
                 produtosBulk.push({
                     gtin: produto.gtin,

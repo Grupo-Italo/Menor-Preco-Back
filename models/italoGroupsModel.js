@@ -78,7 +78,7 @@ exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId, m
         `SELECT id FROM portal.dadosbi.np_concorrentes_bases WHERE italo_bases_id = $1`,
         [italoBasesId]
     );
-
+    console.log(concorrentesPorBaseResult.rows);
     // Pode haver vários concorrentes
     const concorrentesPorBase = concorrentesPorBaseResult.rows.map(r => r.id);
     // Busca ofertas dos concorrentes para os GTINs encontrados
@@ -96,7 +96,7 @@ exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId, m
     );
 
     const ofertas = ofertasResult.rows || [];
-
+    console.log(ofertas)
     // Agrupa todas as ofertas por GTIN, evitando registros duplicados
     const ofertasMap = new Map();
     for (const o of ofertas) {
