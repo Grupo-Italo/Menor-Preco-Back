@@ -12,7 +12,7 @@ exports.getProducts = async (req, res) => {
 
 exports.getProductsByGtin = async (req, res) => {
     try {
-        const { gtin } = req.query;   // obrigatório ser query param
+        const { gtin } = req.query; 
         const products = await produtosErpModel.getProductsByGtin(gtin);
         res.json(products);
     } catch (err) {

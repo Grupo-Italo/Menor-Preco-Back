@@ -5,5 +5,6 @@ const italoMarcasController = require('../controllers/italoMarcasController');
 
 router.get('/groups', italoGroupsController.getAllGroups);
 router.get('/brands', italoMarcasController.getAllBrands);
+router.get('/groupsSearch', italoGroupsController.getProdutosComConcorrentesDinamico);
 
 module.exports = router;

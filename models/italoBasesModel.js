@@ -12,7 +12,7 @@ exports.findByGeohash = async (geohash) => {
 
 exports.getAllBases = async (name) => {
     const result = await pool.query(
-        'select nome, geohash from dadosbi.np_italo_bases where cidade ILIKE $1',
+        'select nome, geohash, id from dadosbi.np_italo_bases where cidade ILIKE $1',
         [`%${name}%`]
     );
     return result.rows;

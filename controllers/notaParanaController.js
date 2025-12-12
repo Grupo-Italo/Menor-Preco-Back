@@ -60,7 +60,7 @@ exports.search = async (req, res) => {
                     datahora: produto.datahora,
                     distkm: produto.distkm,
                     estabelecimento_codigo: produto.estabelecimento.codigo,
-                    estabelecimento_nome: produto.estabelecimento.nm_emp,
+                    estabelecimento_nome: produto.estabelecimento.nm_fan,
                     municipio: produto.estabelecimento.mun,
                     uf: produto.estabelecimento.uf,
                     nrdoc: produto.nrdoc,
