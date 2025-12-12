@@ -2,7 +2,7 @@ const pool = require('../db/pool_produtos');
 const poolMain = require('../db/pool_main');
 
 exports.getAllGroups = async () => {
-  const result = await pool.query(`
+    const result = await pool.query(`
     SELECT MIN(grup_codigo) as grup_codigo,
            LOWER(grup_descricao) AS grup_descricao
     FROM public.grupos
@@ -11,22 +11,21 @@ exports.getAllGroups = async () => {
     ORDER BY grup_descricao
     LIMIT 1000
   `);
-  return result.rows;
+    return result.rows;
 };
 
 exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId) => {
 
-    // 0) Obter o código da unidade associada à base Italo
+    // Busca a unidade (loja) vinculada à base Ítalo
     const italoUnidadeCodigoResult = await poolMain.query(
-        `SELECT prun_unid_codigo FROM portal.dadosbi.np_italo_bases WHERE id = $1`,
+        `SELECT prun_unid_codigo, id FROM portal.dadosbi.np_italo_bases WHERE id = $1`,
         [italoBasesId]
     );
+    const italoUnidadeCodigo = italoUnidadeCodigoResult.rows[0];
 
-      const italoUnidadeCodigo = italoUnidadeCodigoResult.rows[0].prun_unid_codigo;
-
-  // 1) Buscar produtos do ERP (pode retornar várias linhas por prod_codbarras)
-  const produtosResult = await pool.query(
-    `SELECT 
+    // Busca produtos da loja correspondente ao grupo informado
+    const produtosResult = await pool.query(
+        `SELECT 
        produto.prod_descricao, 
        produto.prod_codbarras, 
        produn.prun_prvenda AS valor_loja,
@@ -37,83 +36,94 @@ exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId) =
      JOIN erp.public.produn produn 
        ON produn.prun_prod_codigo = produto.prod_codigo
      WHERE produto.prod_grup_codigo = $1 AND prod_status = 'N' AND prun_unid_codigo = $2`,
-    [grupoCodigo, italoUnidadeCodigo]
-  );
+        [grupoCodigo, italoUnidadeCodigo.prun_unid_codigo]
+    );
 
-  const produtosRows = produtosResult.rows;
-  if (!produtosRows || produtosRows.length === 0) return [];
+    const produtosRows = produtosResult.rows;
+    if (!produtosRows || produtosRows.length === 0) return [];
 
-  // 2) Dedupe produtos por prod_codbarras (usar a primeira ocorrência)
-  const produtosMap = new Map();
-  for (const p of produtosRows) {
-    const gtin = p.prod_codbarras;
-    if (!gtin) continue; // pula sem GTIN
-    if (!produtosMap.has(gtin)) {
-      produtosMap.set(gtin, {
-        prod_descricao: p.prod_descricao,
-        prod_codbarras: gtin,
-        valor_loja: p.valor_loja,
-        promocao_loja: p.promocao_loja,
-        atacado_loja: p.atacado_loja
-      });
+    // Garantir que cada GTIN apareça apenas uma vez
+    const produtosMap = new Map();
+    for (const p of produtosRows) {
+        const gtin = p.prod_codbarras;
+        if (!gtin) continue;
+        if (!produtosMap.has(gtin)) {
+            produtosMap.set(gtin, {
+                prod_descricao: p.prod_descricao,
+                prod_codbarras: gtin,
+                valor_loja: p.valor_loja,
+                promocao_loja: p.promocao_loja,
+                atacado_loja: p.atacado_loja
+            });
+        }
     }
-    // se quiser agregar preços diferentes num array, pode ajustar aqui
-  }
-  const produtos = Array.from(produtosMap.values());
-  if (!produtos.length) return [];
 
-  // 3) Array único de GTINs para usar na query
-  const gtins = Array.from(new Set(produtos.map(p => p.prod_codbarras)));
+    const produtos = Array.from(produtosMap.values());
+    if (!produtos.length) return [];
 
-  // 4) Buscar ofertas — evitar linhas idênticas usando DISTINCT
-  const ofertasResult = await poolMain.query(
-    `SELECT DISTINCT
+    // Lista de GTINs únicos usada para filtrar ofertas no menor preço
+    const gtins = Array.from(new Set(produtos.map(p => p.prod_codbarras)));
+
+    // Busca todos os concorrentes associados à mesma base Ítalo
+    const concorrentesPorBaseResult = await poolMain.query(
+        `SELECT id FROM portal.dadosbi.np_concorrentes_bases WHERE italo_bases_id = $1`,
+        [italoBasesId]
+    );
+
+    // Pode haver vários concorrentes
+    const concorrentesPorBase = concorrentesPorBaseResult.rows.map(r => r.id);
+    console.log('concorrentesPorBase:', concorrentesPorBase);
+
+    // Busca ofertas dos concorrentes para os GTINs encontrados
+    const ofertasResult = await poolMain.query(
+        `SELECT DISTINCT
         gtin,
         valor,
         geohash,
         nome_emp AS nome_empresa,
         estabelecimento_nome
      FROM portal.dadosbi.menorpreco_ofertas
-     WHERE gtin = ANY($1)
-       -- opcional: filtrar por concorrentes_bases_id = $2 se quiser apenas da base selecionada
+     WHERE gtin = ANY($1) AND concorrentes_bases_id = ANY($2)
      ORDER BY gtin, nome_empresa, estabelecimento_nome, valor`,
-    [gtins]
-  );
-
-  const ofertas = ofertasResult.rows || [];
-
-  // 5) Map de ofertas por GTIN (evita duplicidade exata novamente)
-  const ofertasMap = new Map();
-  for (const o of ofertas) {
-    const gtin = o.gtin;
-    if (!gtin) continue;
-    if (!ofertasMap.has(gtin)) ofertasMap.set(gtin, []);
-    const list = ofertasMap.get(gtin);
-
-    const exists = list.some(item =>
-      item.valor === o.valor &&
-      item.nome_empresa === o.nome_empresa &&
-      item.estabelecimento_nome === o.estabelecimento_nome &&
-      item.geohash === o.geohash
+        [gtins, concorrentesPorBase]
     );
 
-    if (!exists) {
-      list.push({
-        valor: o.valor,
-        geohash: o.geohash,
-        nome_empresa: o.nome_empresa,
-        estabelecimento_nome: o.estabelecimento_nome
-      });
+    const ofertas = ofertasResult.rows || [];
+
+    // Agrupa todas as ofertas por GTIN, evitando registros duplicados
+    const ofertasMap = new Map();
+    for (const o of ofertas) {
+        const gtin = o.gtin;
+        if (!gtin) continue;
+
+        if (!ofertasMap.has(gtin)) ofertasMap.set(gtin, []);
+        const list = ofertasMap.get(gtin);
+
+        // Elimina duplicidade exata
+        const exists = list.some(item =>
+            item.valor === o.valor &&
+            item.nome_empresa === o.nome_empresa &&
+            item.estabelecimento_nome === o.estabelecimento_nome &&
+            item.geohash === o.geohash
+        );
+
+        if (!exists) {
+            list.push({
+                valor: o.valor,
+                geohash: o.geohash,
+                nome_empresa: o.nome_empresa,
+                estabelecimento_nome: o.estabelecimento_nome
+            });
+        }
     }
-  }
 
-  // 6) Montar produtos únicos com seus concorrentes (apenas produtos que tenham concorrentes)
-  const produtosComConcorrentes = produtos
-    .map(p => {
-      const concorrentes = ofertasMap.get(p.prod_codbarras) || [];
-      return { ...p, concorrentes };
-    })
-    .filter(p => p.concorrentes && p.concorrentes.length > 0);
+    // Associa concorrentes aos produtos e retorna somente os que possuem ofertas
+    const produtosComConcorrentes = produtos
+        .map(p => {
+            const concorrentes = ofertasMap.get(p.prod_codbarras) || [];
+            return { ...p, concorrentes };
+        })
+        .filter(p => p.concorrentes && p.concorrentes.length > 0);
 
-  return produtosComConcorrentes;
+    return produtosComConcorrentes;
 };
