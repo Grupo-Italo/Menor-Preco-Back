@@ -6,7 +6,7 @@ let jsonFromDb = `[
 
 ]`;
 
-// CORRIGE O JSON QUADRUPLO ESCAPADO DO POSTGRESQL
+// Corrige o JSON quadruplicado do PostgreSQL
 jsonFromDb = jsonFromDb
   .replace(/""/g, '"')     // transforma "" em "
   .replace(/\\n/g, '')     // remove quebras de linha se houver
@@ -17,19 +17,24 @@ const gtins = JSON.parse(jsonFromDb).map(item => item.prod_codbarras);
 
 // Configurações fixas
 const API_URL = 'http://localhost:3000/nota-parana/search';
-const geohash = '6g678vkm5hnf';
+const geohashes = [
+  '6g67bc900v52',
+  '6g678tnpu1yj',
+  '6g67bdvzg0ck',
+  '6g678vpgykfq'
+];
 const raio = 10000;
 
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function processGtins() {
-    console.log(`Iniciando processamento de ${gtins.length} GTINs...`);
+async function processGtinsForGeohash(gtins, geohash) {
+    console.log(`\n=== Processando geohash: ${geohash} ===`);
 
     for (const gtin of gtins) {
         try {
-            console.log(`Consultando GTIN: ${gtin}`);
+            console.log(`Consultando GTIN: ${gtin}...`);
 
             const response = await axios.get(API_URL, {
                 params: { local: geohash, gtin, raio }
@@ -37,14 +42,19 @@ async function processGtins() {
 
             console.log(`GTIN ${gtin} OK. Produtos retornados: ${response.data?.produtos?.length || 0}`);
 
-            await wait(800);
+            await wait(800); // delay entre requests
 
         } catch (error) {
             console.error(`Erro no GTIN ${gtin}:`, error.response?.data || error.message);
         }
     }
-
-    console.log("Processo concluído.");
 }
 
-processGtins();
+async function processAllGeohashes() {
+    for (const geohash of geohashes) {
+        await processGtinsForGeohash(gtins, geohash);
+    }
+    console.log("\nProcessamento de todos os geohashs concluído.");
+}
+
+processAllGeohashes();

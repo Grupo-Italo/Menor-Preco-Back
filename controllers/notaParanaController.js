@@ -33,7 +33,6 @@ exports.search = async (req, res) => {
         }
 
         // Filtra por concorrentes vinculados à base Italo
-        // No controller, substitua o filtro por este:
         if (data?.produtos?.length) {
             data.produtos = data.produtos.filter(prod => {
                 return concorrentes.some(c => {
