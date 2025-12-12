@@ -3,12 +3,11 @@ const poolMain = require('../db/pool_main');
 
 exports.getAllGroups = async () => {
     const result = await pool.query(`
-    SELECT MIN(grup_codigo) as grup_codigo,
-           LOWER(grup_descricao) AS grup_descricao
-    FROM public.grupos
+    SELECT grup_codigo,
+           grup_descricao
+    FROM erp.public.grupos
     WHERE grup_descricao IS NOT NULL
-    GROUP BY LOWER(grup_descricao)
-    ORDER BY grup_descricao`);
+    ORDER BY grup_descricao, grup_codigo`);
     return result.rows;
 };
 
@@ -51,7 +50,7 @@ exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId, m
     );
 
     const produtosRows = produtosResult.rows;
-    
+
     // Garantir que cada GTIN apareça apenas uma vez
     const produtosMap = new Map();
     for (const p of produtosRows) {
@@ -82,7 +81,6 @@ exports.getProdutosComConcorrentesDinamico = async (grupoCodigo, italoBasesId, m
 
     // Pode haver vários concorrentes
     const concorrentesPorBase = concorrentesPorBaseResult.rows.map(r => r.id);
-
     // Busca ofertas dos concorrentes para os GTINs encontrados
     const ofertasResult = await poolMain.query(
         `SELECT DISTINCT
